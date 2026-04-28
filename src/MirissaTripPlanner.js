@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
 import {
   Check,
   Plus,
@@ -13,6 +15,36 @@ import {
 } from "lucide-react";
 
 export default function MirissaTripPlanner() {
+  const TRIP_ID = "mirissa-2026";
+
+  const firebaseConfig = {
+    apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+    authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  };
+
+  const hasFirebaseConfig =
+    !!firebaseConfig.apiKey &&
+    !!firebaseConfig.projectId &&
+    !!firebaseConfig.appId;
+
+  const db = useMemo(() => {
+    if (!hasFirebaseConfig) return null;
+    try {
+      const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+      return getFirestore(app);
+    } catch (e) {
+      console.error("Firebase init failed", e);
+      return null;
+    }
+  }, [hasFirebaseConfig]);
+
+  const lastSyncedJsonRef = useRef("");
+  const [isHydrated, setIsHydrated] = useState(false);
+
   // ==================== STATE ====================
   const [people, setPeople] = useState([
     { id: 1, name: "Rashi", budget: 30060, surfing: true },
@@ -53,58 +85,58 @@ export default function MirissaTripPlanner() {
   ]);
 
   const [shoppingList, setShoppingList] = useState([
-    { id: 1, item: "💧 Water", quantity: 4, price: 130, bought: false },
-    { id: 2, item: "🥨 Murukku/Chips", quantity: 4, price: 300, bought: false },
-    { id: 3, item: "🍬 Pebbles", quantity: 1, price: 420, bought: false },
-    { id: 4, item: "🥤 Sprite", quantity: 1, price: 420, bought: false },
-    { id: 5, item: "🍹 Sun Crush", quantity: 4, price: 180, bought: false },
+    { id: 1, item: "ðŸ’§ Water", quantity: 4, price: 130, bought: false },
+    { id: 2, item: "ðŸ¥¨ Murukku/Chips", quantity: 4, price: 300, bought: false },
+    { id: 3, item: "ðŸ¬ Pebbles", quantity: 1, price: 420, bought: false },
+    { id: 4, item: "ðŸ¥¤ Sprite", quantity: 1, price: 420, bought: false },
+    { id: 5, item: "ðŸ¹ Sun Crush", quantity: 4, price: 180, bought: false },
   ]);
 
   const [packingList, setPackingList] = useState([
-    { id: 1, item: "🎴 Card Pack", category: "Games", packed: false },
-    { id: 2, item: "🎯 Uno Pack", category: "Games", packed: false },
-    { id: 3, item: "🏖️ Beach Mat", category: "Essentials", packed: false },
-    { id: 4, item: "🧼 Soap", category: "Essentials", packed: false },
-    { id: 5, item: "🧴 Shampoo", category: "Essentials", packed: false },
-    { id: 6, item: "🎁 Gifts", category: "Essentials", packed: false },
-    { id: 7, item: "🕶️ Sunglasses", category: "Essentials", packed: false },
-    { id: 8, item: "🧴 Sunscreen", category: "Essentials", packed: false },
-    { id: 9, item: "📱 Phone Charger", category: "Essentials", packed: false },
-    { id: 10, item: "🪥 Tooth Brush", category: "Essentials", packed: false },
+    { id: 1, item: "ðŸŽ´ Card Pack", category: "Games", packed: false },
+    { id: 2, item: "ðŸŽ¯ Uno Pack", category: "Games", packed: false },
+    { id: 3, item: "ðŸ–ï¸ Beach Mat", category: "Essentials", packed: false },
+    { id: 4, item: "ðŸ§¼ Soap", category: "Essentials", packed: false },
+    { id: 5, item: "ðŸ§´ Shampoo", category: "Essentials", packed: false },
+    { id: 6, item: "ðŸŽ Gifts", category: "Essentials", packed: false },
+    { id: 7, item: "ðŸ•¶ï¸ Sunglasses", category: "Essentials", packed: false },
+    { id: 8, item: "ðŸ§´ Sunscreen", category: "Essentials", packed: false },
+    { id: 9, item: "ðŸ“± Phone Charger", category: "Essentials", packed: false },
+    { id: 10, item: "ðŸª¥ Tooth Brush", category: "Essentials", packed: false },
     {
       id: 11,
-      item: "🚌 Day 01 – Travel Outfit",
+      item: "ðŸšŒ Day 01 â€“ Travel Outfit",
       category: "Outfits",
       packed: false,
     },
     {
       id: 12,
-      item: "🏨 Day 01 – Hotel Outfit",
+      item: "ðŸ¨ Day 01 â€“ Hotel Outfit",
       category: "Outfits",
       packed: false,
     },
     {
       id: 13,
-      item: "🌙 Day 01 – Night Outfit",
+      item: "ðŸŒ™ Day 01 â€“ Night Outfit",
       category: "Outfits",
       packed: false,
     },
-    { id: 14, item: "💤 Day 01 – Pyjama", category: "Outfits", packed: false },
+    { id: 14, item: "ðŸ’¤ Day 01 â€“ Pyjama", category: "Outfits", packed: false },
     {
       id: 15,
-      item: "🏖️ Day 02 – Beach Wear",
+      item: "ðŸ–ï¸ Day 02 â€“ Beach Wear",
       category: "Outfits",
       packed: false,
     },
     {
       id: 16,
-      item: "🍽️ Day 02 – Lunch Outfit",
+      item: "ðŸ½ï¸ Day 02 â€“ Lunch Outfit",
       category: "Outfits",
       packed: false,
     },
     {
       id: 17,
-      item: "🚌 Day 03 – Return Outfit",
+      item: "ðŸšŒ Day 03 â€“ Return Outfit",
       category: "Outfits",
       packed: false,
     },
@@ -119,15 +151,15 @@ export default function MirissaTripPlanner() {
         {
           id: 1,
           time: "10:15 AM",
-          name: "🚌 Departure",
-          location: "Makumbura → Matara",
+          name: "ðŸšŒ Departure",
+          location: "Makumbura â†’ Matara",
           cost: 3880,
           done: false,
         },
         {
           id: 2,
           time: "12:15 PM",
-          name: "🍽️ Lunch @ P&S",
+          name: "ðŸ½ï¸ Lunch @ P&S",
           location: "Matara Bus Stand",
           cost: 4000,
           done: false,
@@ -135,7 +167,7 @@ export default function MirissaTripPlanner() {
         {
           id: 3,
           time: "2:00 PM",
-          name: "🛒 Shopping at Cargills",
+          name: "ðŸ›’ Shopping at Cargills",
           location: "Get snacks & drinks",
           cost: 3280,
           done: false,
@@ -143,7 +175,7 @@ export default function MirissaTripPlanner() {
         {
           id: 4,
           time: "2:00 PM",
-          name: "🏨 Check-in",
+          name: "ðŸ¨ Check-in",
           location: "ARA Beach Resort",
           cost: 400,
           done: false,
@@ -151,7 +183,7 @@ export default function MirissaTripPlanner() {
         {
           id: 5,
           time: "7:30 PM",
-          name: "🌙 Dinner",
+          name: "ðŸŒ™ Dinner",
           location: "Low budget place",
           cost: 4000,
           done: false,
@@ -159,7 +191,7 @@ export default function MirissaTripPlanner() {
         {
           id: 6,
           time: "9:00 PM",
-          name: "🚗 Back to Resort",
+          name: "ðŸš— Back to Resort",
           location: "Transport",
           cost: 400,
           done: false,
@@ -174,7 +206,7 @@ export default function MirissaTripPlanner() {
         {
           id: 7,
           time: "9:00 AM",
-          name: "🚗 ARA to Surf Spot",
+          name: "ðŸš— ARA to Surf Spot",
           location: "Transport",
           cost: 200,
           done: false,
@@ -182,7 +214,7 @@ export default function MirissaTripPlanner() {
         {
           id: 8,
           time: "10:00 AM",
-          name: "🏄 Surfing Session",
+          name: "ðŸ„ Surfing Session",
           location: "Mirissa Beach (3 people)",
           cost: 12000,
           done: false,
@@ -190,7 +222,7 @@ export default function MirissaTripPlanner() {
         {
           id: 9,
           time: "1:00 PM",
-          name: "🍕 Picnic Lunch - Pizza",
+          name: "ðŸ• Picnic Lunch - Pizza",
           location: "Beach",
           cost: 4000,
           done: false,
@@ -198,7 +230,7 @@ export default function MirissaTripPlanner() {
         {
           id: 10,
           time: "2:00 PM",
-          name: "🚗 Surf to ARA",
+          name: "ðŸš— Surf to ARA",
           location: "Transport",
           cost: 200,
           done: false,
@@ -206,7 +238,7 @@ export default function MirissaTripPlanner() {
         {
           id: 11,
           time: "5:00 PM",
-          name: "🚗 ARA to Petti Petti",
+          name: "ðŸš— ARA to Petti Petti",
           location: "Transport",
           cost: 200,
           done: false,
@@ -214,7 +246,7 @@ export default function MirissaTripPlanner() {
         {
           id: 12,
           time: "5:30 PM",
-          name: "🎉 Petti Petti Activity",
+          name: "ðŸŽ‰ Petti Petti Activity",
           location: "Evening fun!",
           cost: 20000,
           done: false,
@@ -222,7 +254,7 @@ export default function MirissaTripPlanner() {
         {
           id: 13,
           time: "8:00 PM",
-          name: "🚗 Petti Petti to ARA",
+          name: "ðŸš— Petti Petti to ARA",
           location: "Transport",
           cost: 200,
           done: false,
@@ -237,7 +269,7 @@ export default function MirissaTripPlanner() {
         {
           id: 14,
           time: "11:00 AM",
-          name: "🏨 Check-out",
+          name: "ðŸ¨ Check-out",
           location: "ARA Beach Resort",
           cost: 0,
           done: false,
@@ -245,7 +277,7 @@ export default function MirissaTripPlanner() {
         {
           id: 15,
           time: "11:30 AM",
-          name: "🚗 ARA to Matara",
+          name: "ðŸš— ARA to Matara",
           location: "Transport",
           cost: 400,
           done: false,
@@ -253,7 +285,7 @@ export default function MirissaTripPlanner() {
         {
           id: 16,
           time: "1:15 PM",
-          name: "☕ Barista Coffee Stop",
+          name: "â˜• Barista Coffee Stop",
           location: "Matara",
           cost: 3200,
           done: false,
@@ -261,8 +293,8 @@ export default function MirissaTripPlanner() {
         {
           id: 17,
           time: "3:45 PM",
-          name: "🚌 Journey Home",
-          location: "Matara → Makumbura",
+          name: "ðŸšŒ Journey Home",
+          location: "Matara â†’ Makumbura",
           cost: 3880,
           done: false,
         },
@@ -306,24 +338,76 @@ export default function MirissaTripPlanner() {
     cost: 0,
   });
 
-  // ==================== PERSISTENCE ====================
-  useEffect(() => {
-    const saved = localStorage.getItem("mirissa-trip-data");
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        if (data.people) setPeople(data.people);
-        if (data.expenses) setExpenses(data.expenses);
-        if (data.shopping) setShoppingList(data.shopping);
-        if (data.packing) setPackingList(data.packing);
-        if (data.activities) setActivities(data.activities);
-      } catch (e) {
-        console.error("Failed to load saved data");
-      }
-    }
-  }, []);
+  // ==================== PERSISTENCE / REALTIME ====================
+  const snapshotToState = (data) => {
+    if (data.people) setPeople(data.people);
+    if (data.expenses) setExpenses(data.expenses);
+    if (data.shopping) setShoppingList(data.shopping);
+    if (data.packing) setPackingList(data.packing);
+    if (data.activities) setActivities(data.activities);
+  };
 
   useEffect(() => {
+    const loadFromLocal = () => {
+      const saved = localStorage.getItem("mirissa-trip-data");
+      if (!saved) return;
+      try {
+        const data = JSON.parse(saved);
+        snapshotToState(data);
+        lastSyncedJsonRef.current = JSON.stringify({
+          people: data.people || [],
+          expenses: data.expenses || [],
+          shopping: data.shopping || [],
+          packing: data.packing || [],
+          activities: data.activities || [],
+        });
+      } catch (e) {
+        console.error("Failed to load local data", e);
+      }
+    };
+
+    if (!db) {
+      loadFromLocal();
+      setIsHydrated(true);
+      return;
+    }
+
+    const tripRef = doc(db, "trips", TRIP_ID);
+    const unsub = onSnapshot(
+      tripRef,
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          const next = {
+            people: data.people || [],
+            expenses: data.expenses || [],
+            shopping: data.shopping || [],
+            packing: data.packing || [],
+            activities: data.activities || [],
+          };
+          const json = JSON.stringify(next);
+          if (json !== lastSyncedJsonRef.current) {
+            snapshotToState(next);
+            lastSyncedJsonRef.current = json;
+          }
+        } else {
+          loadFromLocal();
+        }
+        setIsHydrated(true);
+      },
+      (err) => {
+        console.error("Firestore subscribe failed, using local fallback", err);
+        loadFromLocal();
+        setIsHydrated(true);
+      }
+    );
+
+    return () => unsub();
+  }, [db]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
     const data = {
       people,
       expenses,
@@ -331,8 +415,22 @@ export default function MirissaTripPlanner() {
       packing: packingList,
       activities,
     };
-    localStorage.setItem("mirissa-trip-data", JSON.stringify(data));
-  }, [people, expenses, shoppingList, packingList, activities]);
+    const json = JSON.stringify(data);
+
+    localStorage.setItem("mirissa-trip-data", json);
+
+    if (!db) return;
+    if (json === lastSyncedJsonRef.current) return;
+
+    const tripRef = doc(db, "trips", TRIP_ID);
+    setDoc(tripRef, { ...data, updatedAt: serverTimestamp() }, { merge: true })
+      .then(() => {
+        lastSyncedJsonRef.current = json;
+      })
+      .catch((err) => {
+        console.error("Failed to sync to Firestore", err);
+      });
+  }, [isHydrated, db, people, expenses, shoppingList, packingList, activities]);
 
   // ==================== DRAG AND DROP ====================
   const handleDragStart = (e, item, type) => {
@@ -680,10 +778,10 @@ export default function MirissaTripPlanner() {
         {/* Header */}
         <header className="text-center mb-8 animate-slide-in">
           <h1 className="title-font text-5xl md:text-7xl text-white mb-4 drop-shadow-lg">
-            🌴 MIRISSA GIRLS TRIP 🌊
+            ðŸŒ´ MIRISSA GIRLS TRIP ðŸŒŠ
           </h1>
           <p className="text-xl md:text-2xl text-yellow-100 font-semibold mb-4">
-            Rashi • Bima • Setha • Shena
+            Rashi â€¢ Bima â€¢ Setha â€¢ Shena
           </p>
           <div className="inline-block bg-white/20 backdrop-blur-md px-6 py-3 rounded-full text-white font-bold text-lg border-2 border-white/30">
             May 1-3, 2026
@@ -693,28 +791,28 @@ export default function MirissaTripPlanner() {
         {/* Progress Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-gradient-to-br from-pink-500 to-rose-500 rounded-3xl p-6 text-white shadow-2xl">
-            <div className="text-4xl mb-2">💰</div>
+            <div className="text-4xl mb-2">ðŸ’°</div>
             <div className="text-2xl md:text-3xl font-bold">
               LKR {totalRemaining.toLocaleString()}
             </div>
             <div className="text-pink-100 text-sm">Remaining</div>
           </div>
           <div className="bg-gradient-to-br from-orange-500 to-amber-500 rounded-3xl p-6 text-white shadow-2xl">
-            <div className="text-4xl mb-2">🛒</div>
+            <div className="text-4xl mb-2">ðŸ›’</div>
             <div className="text-2xl md:text-3xl font-bold">
               {shoppingBought}/{shoppingList.length}
             </div>
             <div className="text-orange-100 text-sm">Bought</div>
           </div>
           <div className="bg-gradient-to-br from-purple-500 to-indigo-500 rounded-3xl p-6 text-white shadow-2xl">
-            <div className="text-4xl mb-2">🎒</div>
+            <div className="text-4xl mb-2">ðŸŽ’</div>
             <div className="text-2xl md:text-3xl font-bold">
               {packingPacked}/{packingList.length}
             </div>
             <div className="text-purple-100 text-sm">Packed</div>
           </div>
           <div className="bg-gradient-to-br from-teal-500 to-cyan-500 rounded-3xl p-6 text-white shadow-2xl">
-            <div className="text-4xl mb-2">✅</div>
+            <div className="text-4xl mb-2">âœ…</div>
             <div className="text-2xl md:text-3xl font-bold">
               {completedActivities}/{totalActivities}
             </div>
@@ -725,11 +823,11 @@ export default function MirissaTripPlanner() {
         {/* Tabs */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           {[
-            { id: "itinerary", label: "📅 Itinerary" },
-            { id: "shopping", label: "🛒 Shopping" },
-            { id: "packing", label: "🎒 Packing" },
-            { id: "budget", label: "💰 Budget" },
-            { id: "people", label: "👥 People" },
+            { id: "itinerary", label: "ðŸ“… Itinerary" },
+            { id: "shopping", label: "ðŸ›’ Shopping" },
+            { id: "packing", label: "ðŸŽ’ Packing" },
+            { id: "budget", label: "ðŸ’° Budget" },
+            { id: "people", label: "ðŸ‘¥ People" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -990,7 +1088,7 @@ export default function MirissaTripPlanner() {
         {activeTab === "shopping" && (
           <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-4 md:p-6 shadow-2xl">
             <h2 className="title-font text-2xl md:text-3xl text-teal-600 mb-4 md:mb-6">
-              🛒 Shopping List - Cargills
+              ðŸ›’ Shopping List - Cargills
             </h2>
 
             {/* Add New Item */}
@@ -998,7 +1096,7 @@ export default function MirissaTripPlanner() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-3">
                 <input
                   type="text"
-                  placeholder="Item (e.g., 🍪 Cookies)"
+                  placeholder="Item (e.g., ðŸª Cookies)"
                   value={newShoppingItem.item}
                   onChange={(e) =>
                     setNewShoppingItem({
@@ -1139,7 +1237,7 @@ export default function MirissaTripPlanner() {
                           {item.item}
                         </span>
                         <div className="text-xs md:text-sm text-gray-600">
-                          Qty: {item.quantity} × LKR {item.price} = LKR{" "}
+                          Qty: {item.quantity} Ã— LKR {item.price} = LKR{" "}
                           {(item.quantity * item.price).toLocaleString()}
                         </div>
                       </div>
@@ -1193,7 +1291,7 @@ export default function MirissaTripPlanner() {
         {activeTab === "packing" && (
           <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-4 md:p-6 shadow-2xl">
             <h2 className="title-font text-2xl md:text-3xl text-teal-600 mb-4 md:mb-6">
-              🎒 Packing List
+              ðŸŽ’ Packing List
             </h2>
 
             {/* Add New Item */}
@@ -1201,7 +1299,7 @@ export default function MirissaTripPlanner() {
               <div className="flex gap-2 md:gap-3">
                 <input
                   type="text"
-                  placeholder="Add item (e.g., 🕶️ Sunglasses)"
+                  placeholder="Add item (e.g., ðŸ•¶ï¸ Sunglasses)"
                   value={newPackingItem.item}
                   onChange={(e) =>
                     setNewPackingItem({
@@ -1239,9 +1337,9 @@ export default function MirissaTripPlanner() {
             <div className="space-y-4">
               {Object.entries(groupedPacking).map(([category, items]) => {
                 const categoryIcons = {
-                  Essentials: "🧴",
-                  Outfits: "👗",
-                  Games: "🎲",
+                  Essentials: "ðŸ§´",
+                  Outfits: "ðŸ‘—",
+                  Games: "ðŸŽ²",
                 };
                 const packedInCategory = items.filter((i) => i.packed).length;
 
@@ -1337,7 +1435,7 @@ export default function MirissaTripPlanner() {
           <div className="space-y-6">
             <div className="bg-gradient-to-br from-pink-500 to-rose-500 rounded-3xl p-6 md:p-8 text-white shadow-2xl text-center">
               <h2 className="title-font text-2xl md:text-3xl mb-4">
-                💰 Budget Overview
+                ðŸ’° Budget Overview
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                 <div>
@@ -1369,7 +1467,7 @@ export default function MirissaTripPlanner() {
 
             <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-4 md:p-6 shadow-2xl">
               <h3 className="title-font text-xl md:text-2xl text-teal-600 mb-4">
-                🏨 Accommodation
+                ðŸ¨ Accommodation
               </h3>
               <div className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white p-4 md:p-6 rounded-2xl">
                 <div className="text-xl md:text-2xl font-bold mb-4">
@@ -1377,12 +1475,12 @@ export default function MirissaTripPlanner() {
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3 mb-4">
                   {[
-                    "✨ Good Vibes",
-                    "❄️ AC",
-                    "🍳 Breakfast",
-                    "🚿 Premium Bath",
-                    "🏖️ Beachfront",
-                    "🏊 Pool",
+                    "âœ¨ Good Vibes",
+                    "â„ï¸ AC",
+                    "ðŸ³ Breakfast",
+                    "ðŸš¿ Premium Bath",
+                    "ðŸ–ï¸ Beachfront",
+                    "ðŸŠ Pool",
                   ].map((amenity) => (
                     <div
                       key={amenity}
@@ -1401,7 +1499,7 @@ export default function MirissaTripPlanner() {
             {/* Add Expense */}
             <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-4 md:p-6 shadow-2xl">
               <h3 className="title-font text-xl md:text-2xl text-teal-600 mb-4">
-                ➕ Add Expense
+                âž• Add Expense
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-2 md:gap-3">
                 <input
@@ -1461,7 +1559,7 @@ export default function MirissaTripPlanner() {
             {/* Expense List */}
             <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-4 md:p-6 shadow-2xl">
               <h3 className="title-font text-xl md:text-2xl text-teal-600 mb-4">
-                📝 All Expenses
+                ðŸ“ All Expenses
               </h3>
               <div className="space-y-3">
                 {expenses.map((exp) => (
@@ -1536,7 +1634,7 @@ export default function MirissaTripPlanner() {
                             {exp.description}
                           </div>
                           <div className="text-xs md:text-sm text-gray-600">
-                            {exp.date} • {exp.person}
+                            {exp.date} â€¢ {exp.person}
                           </div>
                         </div>
                         <div className="text-lg md:text-xl font-bold text-teal-600">
@@ -1582,7 +1680,7 @@ export default function MirissaTripPlanner() {
                       {person.name}
                     </h2>
                     <div className="flex items-center gap-2">
-                      {person.surfing && <span className="text-2xl">🏄</span>}
+                      {person.surfing && <span className="text-2xl">ðŸ„</span>}
                       <button
                         onClick={() => togglePersonSurfing(person.id)}
                         className={`px-3 py-1 rounded-full text-xs font-bold text-white ${
@@ -1674,13 +1772,13 @@ export default function MirissaTripPlanner() {
         {/* Footer */}
         <footer className="text-center text-white mt-12 py-6">
           <p className="text-xl md:text-2xl mb-2">
-            🌴 Get ready for an amazing beach adventure! 🌊
+            ðŸŒ´ Get ready for an amazing beach adventure! ðŸŒŠ
           </p>
           <p className="opacity-80 text-sm md:text-base">
-            May 1-3, 2026 • Mirissa, Sri Lanka
+            May 1-3, 2026 â€¢ Mirissa, Sri Lanka
           </p>
           <p className="text-xs md:text-sm mt-4 opacity-70">
-            ✨ All changes auto-save in your browser
+            âœ¨ All changes auto-save in your browser
           </p>
         </footer>
       </div>
